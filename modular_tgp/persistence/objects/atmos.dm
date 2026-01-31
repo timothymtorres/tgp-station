@@ -15,6 +15,9 @@
 	. -= NAMEOF(src, id_tag)
 	return .
 
+/obj/machinery/atmospherics/pipe
+	var/persistence_pipe_id
+
 /obj/machinery/atmospherics/pipe/smart/substitute_with_typepath(map_string)
 	var/base_type = /obj/machinery/atmospherics/pipe/smart/manifold4w
 	var/cache_key = "[base_type]-[pipe_color]-[hide]-[piping_layer]"
@@ -48,7 +51,7 @@
 			else
 				color_path = "/general"
 
-		var/visible_path = hide ? "/hidden" : "/visible"
+		var/visible_path = HAS_TRAIT(src, TRAIT_UNDERFLOOR) ? "/hidden" : "/visible"
 
 		var/layer_path = ""
 		if(piping_layer != 3)
@@ -64,12 +67,25 @@
 			stack_trace("Failed to convert pipe to typepath: [full_path]")
 
 	var/cached_typepath = GLOB.map_export_typepath_cache[cache_key]
-	if(cached_typepath)
-		var/obj/machinery/atmospherics/pipe/smart/manifold4w/typepath = cached_typepath
-		// all relevant variables are in the typepath string
-		TGM_MAP_BLOCK(map_string, typepath, null)
+	. = cached_typepath // set return
+	if(!cached_typepath) //does this even matter if it fails?
+		return
 
-	return cached_typepath
+	var/obj/machinery/atmospherics/pipe/smart/manifold4w/typepath = cached_typepath
+	var/list/variables = list()
+
+	if(parent?.members[1] == src && !isnull(parent.air))
+		var/new_id = assign_random_name(12, "persistencegas_")
+		TGM_ADD_TYPEPATH_VAR(variables, typepath, persistence_pipe_id, new_id) //assign id to pipe
+
+		var/list/helper_variables = list() //variables for gas mix helper
+
+		TGM_ADD_STATIC_TYPEPATH_VAR(helper_variables, /obj/effect/mapping_helpers/pipe_gas, gas_mix, parent.air.to_string())
+		TGM_ADD_STATIC_TYPEPATH_VAR(helper_variables, /obj/effect/mapping_helpers/pipe_gas, id_filter, new_id)
+		TGM_MAP_BLOCK(map_string, /obj/effect/mapping_helpers/pipe_gas, generate_tgm_typepath_metadata(helper_variables))
+
+	TGM_MAP_BLOCK(map_string, typepath, length(variables) ? generate_tgm_typepath_metadata(variables) : null)
+
 
 // these spawn underneath cryo machines and will duplicate after every save
 /obj/machinery/atmospherics/components/unary/is_saveable(turf/current_loc, list/obj_blacklist)
@@ -290,3 +306,44 @@
 /obj/machinery/atmospherics/components/unary/outlet_injector/get_save_vars(save_flags=ALL)
 	. = ..()
 	. += NAMEOF(src, volume_rate)
+
+/obj/effect/mapping_helpers/pipe_gas
+	name = "Pipe Gasmix Setter"
+	icon_state = ""
+	late = TRUE
+	var/gas_mix = OPENTURF_DEFAULT_ATMOS
+	/// Target pipe layer (ignored with id_filter)
+	var/pipe_layer = PIPING_LAYER_DEFAULT
+	/// Optionally just use ID instead (must be on top still)
+	var/id_filter
+
+/obj/effect/mapping_helpers/pipe_gas/Initialize(mapload)
+	. = ..()
+	if(!mapload)
+		log_mapping("[src] spawned outside of mapload!")
+		return INITIALIZE_HINT_QDEL
+
+	return INITIALIZE_HINT_LATELOAD
+
+/obj/effect/mapping_helpers/pipe_gas/LateInitialize()
+	var/obj/machinery/atmospherics/pipe/pipe
+	for(var/obj/machinery/atmospherics/pipe/potential_pipe in loc)
+		if(!isnull(id_filter) && (potential_pipe.id_tag != id_filter || potential_pipe.persistence_pipe_id != id_filter)) continue
+		if(isnull(id_filter) && potential_pipe.piping_layer != pipe_layer) continue
+		pipe = potential_pipe
+		break
+
+	if(isnull(pipe))
+		log_mapping("[type] at [AREACOORD(src)] did not find any pipe to set gas mix of")
+		qdel(src)
+		return
+
+	var/datum/gas_mixture/gasmix = SSair.parse_gas_string(gas_mix, /datum/gas_mixture)
+	if(!isnull(pipe.parent))
+		pipe.parent.air.copy_from(gasmix)
+	else
+		pipe.air_temporary = gasmix
+
+	pipe.persistence_pipe_id = null
+
+	qdel(src)
