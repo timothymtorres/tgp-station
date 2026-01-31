@@ -6857,6 +6857,7 @@
 #include "modular_tgp\persistence\objects\power.dm"
 #include "modular_tgp\persistence\objects\puzzle.dm"
 #include "modular_tgp\persistence\objects\reagents.dm"
+#include "modular_tgp\persistence\objects\robotics.dm"
 #include "modular_tgp\persistence\objects\science.dm"
 #include "modular_tgp\persistence\objects\service.dm"
 #include "modular_tgp\persistence\objects\shuttle.dm"
