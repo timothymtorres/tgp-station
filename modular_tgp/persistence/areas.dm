@@ -1,4 +1,18 @@
 /area/get_save_vars(save_flags=ALL)
 	. = ..()
-	. += NAMEOF(src, lightswitch) // lightswitches use this area variable to save their state
+	. += NAMEOF(src, name)
+	. += NAMEOF(src, icon)
+	. += NAMEOF(src, icon_state)
+	. += NAMEOF(src, lightswitch)
+	. += NAMEOF(src, requires_power)
+	. += NAMEOF(src, always_unpowered)
+	. += NAMEOF(src, power_equip)
+	. += NAMEOF(src, power_light)
+	. += NAMEOF(src, power_environ)
+	. += NAMEOF(src, area_flags)
+	. += NAMEOF(src, default_gravity)
+	. += NAMEOF(src, outdoors)
+	. += NAMEOF(src, ambience_index)
+	. += NAMEOF(src, sound_environment)
+
 	return .

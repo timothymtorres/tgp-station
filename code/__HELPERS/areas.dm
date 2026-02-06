@@ -167,12 +167,23 @@ GLOBAL_LIST_INIT(typecache_powerfailure_safe_areas, typecacheof(list(
 		var/str = tgui_input_text(creator, "New area name", "Blueprint Editing", max_length = MAX_NAME_LEN)
 		if(!str)
 			return
+
+		// Get available icon states from the station areas icon file
+		var/list/available_icons = icon_states('icons/area/areas_station.dmi')
+		sortTim(available_icons, GLOBAL_PROC_REF(cmp_text_asc))
+
+		var/chosen_icon_state = tgui_input_list(creator, "Choose an icon for the area (used in mapping tools)", "Area Icon", available_icons)
+		if(isnull(chosen_icon_state))
+			chosen_icon_state = "unknown" // fallback default
+
 		newA = new area_choice
 		newA.AddComponent(/datum/component/custom_area)
 		newA.setup(str)
+		newA.icon = 'icons/area/areas_station.dmi'
+		newA.icon_state = chosen_icon_state
 		newA.default_gravity = oldA.default_gravity
 		GLOB.custom_areas[newA] = TRUE
-		require_area_resort() //new area registered. resort the names
+		require_area_resort()
 	else
 		newA = area_choice
 
